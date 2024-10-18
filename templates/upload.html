@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.min.js"></script>
+    <!-- เพิ่มไลบรารี pdf.js -->
+    <title>SUMSAN Summarizer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f8f8f8;
+        }
+
+        .container {
+            position: relative;
+            width: 60%;
+            margin: 0 auto;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        h1 {
+            font-size: 24px;
+            margin: 0;
+            position: absolute;
+            top: 30px;
+            left: -200px;
+            color: #333;
+        }
+
+        h3 {
+            font-size: 20px;
+            color: #666;
+            margin-bottom: 20px;
+            margin-top: -500px;
+            position: absolute;
+        }
+
+        .upload-box {
+            border: 2px dashed #ccc;
+            padding: 40px;
+            background-color: #fff;
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: all 0.3s ease;
+            margin-top: -180px;
+            width: 80%;
+            max-width: 1800px;
+        }
+
+        .upload-box input[type="file"] {
+            display: none;
+        }
+
+        .upload-box label {
+            cursor: pointer;
+            padding: 10px 20px;
+            background-color: #ccc;
+            border-radius: 5px;
+            font-size: 16px;
+            color: #333;
+            margin-top: 20px;
+        }
+
+        .upload-box p {
+            font-size: 16px;
+            color: #666;
+        }
+
+        .upload-box i {
+            font-size: 64px;
+            margin-bottom: 10px;
+            color: #666;
+        }
+
+        .selected-file {
+            font-size: 16px;
+            color: #333;
+            font-weight: bold;
+            display: none;
+            border: 1px solid #ccc;
+            background-color: #f1f1f1;
+            padding: 20px;
+            border-radius: 10px;
+            width: 100%;
+            margin-top: -230px;
+            position: absolute;
+            margin-left: -400px;
+        }
+
+        .remove-file {
+            position: absolute;
+            right: 20px;
+            cursor: pointer;
+            color: #666;
+            font-size: 18px;
+        }
+
+        .submit-button {
+            margin-top: -150px;
+            padding: 15px 30px;
+            background-color: #333;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            text-align: center;
+            display: none;
+            width: 100%;
+            max-width: 300px;
+            margin-left: 150px;
+            position: absolute;
+            margin-left: -150px;
+        }
+
+        .submit-button:hover {
+            background-color: #666;
+        }
+
+        .pdf-content {
+            margin-top: 280px;
+            background-color: #fff;
+            padding: 15px;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            width: 80%;
+            max-width: 1000px;
+            display: none;
+            /* ซ่อนกล่องนี้เริ่มต้น */
+            overflow-y: auto;
+            /* เลื่อนดูได้ถ้าเนื้อหามาก */
+            max-height: 400px;
+            /* ความสูงสูงสุดของกล่อง */
+            position: absolute;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>SUMSAN Summarizer</h1>
+        <h3>Upload your file</h3>
+        <form action="/uploader" method="POST" enctype="multipart/form-data">
+            <div class="upload-box" id="upload-box">
+                <i class="fa-solid fa-cloud-arrow-up"></i>
+                <p>Choose a file or drag & drop PDF here</p>
+                <input type="file" name="file" id="file-upload" accept="application/pdf" onchange="updateFileName()">
+                <label for="file-upload">Browse File</label>
+            </div>
+            <div class="selected-file" id="selected-file">
+                <span id="file-name"></span>
+                <i class="fas fa-times remove-file" onclick="removeFile()"></i>
+            </div>
+            <button type="button" class="submit-button" id="submit-button" onclick="readPDF()">Start Summary</button>
+
+            <!-- <button type="button" class="submit-button" id="submit-button" onclick="submitText()">Start Summary</button> -->
+        </form>
+        <div class="pdf-content" id="pdf-content"></div> <!-- เพิ่มกล่องสำหรับแสดงเนื้อหา PDF -->
+    </div>
+
+    <script>
+        function updateFileName() {
+            const fileInput = document.getElementById('file-upload');
+            const selectedFile = document.getElementById('selected-file');
+            const uploadBox = document.getElementById('upload-box');
+            const fileName = document.getElementById('file-name');
+            const submitButton = document.getElementById('submit-button');
+
+            if (fileInput.files.length > 0) {
+                fileName.textContent = `Selected file: ${fileInput.files[0].name}`;
+                selectedFile.style.display = 'block';
+                uploadBox.style.display = 'none';
+                submitButton.style.display = 'block';
+            } else {
+                selectedFile.style.display = 'none';
+                uploadBox.style.display = 'flex';
+                submitButton.style.display = 'none';
+            }
+        }
+
+        function removeFile() {
+            const fileInput = document.getElementById('file-upload');
+            const selectedFile = document.getElementById('selected-file');
+            const uploadBox = document.getElementById('upload-box');
+            const submitButton = document.getElementById('submit-button');
+            const pdfContent = document.getElementById('pdf-content');
+
+            fileInput.value = '';
+            selectedFile.style.display = 'none';
+            uploadBox.style.display = 'flex';
+            submitButton.style.display = 'none';
+            pdfContent.style.display = 'none'; // ซ่อนเนื้อหา PDF
+            pdfContent.innerHTML = ''; // ล้างเนื้อหา PDF
+        }
+
+        async function readPDF() {
+            const fileInput = document.getElementById('file-upload');
+            const pdfContent = document.getElementById('pdf-content');
+            pdfContent.style.display = 'block';
+            pdfContent.innerHTML = 'Loading...';
+
+            const file = fileInput.files[0];
+            const fileReader = new FileReader();
+
+            fileReader.onload = async function () {
+                const typedArray = new Uint8Array(this.result);
+                const pdf = await pdfjsLib.getDocument(typedArray).promise;
+
+                let pdfText = '';
+                for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                    const page = await pdf.getPage(pageNum);
+                    const content = await page.getTextContent();
+                    const textItems = content.items.map(item => item.str);
+                    pdfText += textItems.join(' ') + ' ';
+                }
+
+                // เปลี่ยนตัวอักษรให้เป็นตัวเล็ก
+                pdfText = pdfText.toLowerCase();
+
+                // ลบตัวอักษรพิเศษ
+                pdfText = pdfText.replace(/[^a-z0-9\s.]/g, ''); // ลบตัวอักษรพิเศษ
+
+                // ตัดเนื้อหาหลังจากคำว่า "abstract"
+                const abstractIndex = pdfText.indexOf('abstract');
+                if (abstractIndex !== -1) {
+                    pdfText = pdfText.slice(abstractIndex); // ตัดให้เริ่มต้นจากคำว่า "abstract" และส่วนที่เหลือ
+                }
+
+                // ตัดเนื้อหาหลังจากคำว่า "reference"
+                const referenceIndex = pdfText.indexOf('reference');
+                if (referenceIndex !== -1) {
+                    pdfText = pdfText.slice(0, referenceIndex); // ตัดเนื้อหาที่เหลือ
+                }
+
+                // Send the cleaned PDF text to the Flask app for summarization
+                const response = await fetch('/uploader', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ text: pdfText }), // ส่งข้อความ PDF ที่ถูกทำความสะอาดไปยังเซิร์ฟเวอร์
+                });
+
+                const result = await response.json();
+                // แสดงผลสรุปจาก result แทนการแสดงเนื้อหาของ PDF
+                pdfContent.innerHTML = `<strong>Summary:</strong> ${result.summary}`;
+            };
+
+            // อ่านไฟล์ PDF
+            fileReader.readAsArrayBuffer(file);
+        }
+
+
+
+
+    </script>
+</body>
+
+</html>
